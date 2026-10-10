@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TimerPlay</title>
+    
+    <!-- PWA Manifest Link -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#16a34a">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', 'Inter', sans-serif;
+            touch-action: manipulation;
+        }
+        .neon-glow {
+            text-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+        .neon-box {
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.15);
+        }
+        @keyframes fall {
+            0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            top: -10px;
+            z-index: 9999;
+            animation: fall 3s linear forwards;
+        }
+    </style>
+</head>
+<body id="body-theme" class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 selection:bg-blue-500 selection:text-white transition-colors duration-500">
+
+    <!-- Splash Screen Overlay -->
+    <div id="splash-screen" class="fixed inset-0 bg-emerald-950 z-50 flex flex-col items-center justify-center transition-opacity duration-700">
+        <div class="text-4xl sm:text-6xl font-black tracking-wider flex items-center gap-1 drop-shadow-lg">
+            <span class="text-blue-500">Timer</span><span class="text-amber-400">Play</span>
+        </div>
+    </div>
+
+    <!-- Language Selection Modal -->
+    <div id="lang-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-40 p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 w-full max-w-sm text-center shadow-2xl space-y-6">
+            <div class="text-4xl">🌐</div>
+            <h2 class="text-xl sm:text-2xl font-black text-slate-100">اختر اللغة / Select Language</h2>
+            <div class="space-y-3">
+                <button onclick="selectLanguage('ar')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-2xl shadow-lg transition transform active:scale-95 text-base sm:text-lg">
+                    العربية 🇸🇦
+                </button>
+                <button onclick="selectLanguage('en')" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3.5 rounded-2xl shadow-lg transition transform active:scale-95 text-base sm:text-lg">
+                    English 🇬🇧
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-card" class="w-full max-w-xl bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-8 neon-box backdrop-blur-xl my-auto relative overflow-hidden transition-all duration-500">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 sm:mb-8 relative">
+            <div id="settings-btn-container">
+                <button onclick="openSettingsModal()" class="w-10 h-10 rounded-2xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-lg transition shadow-md cursor-pointer">
+                    ⚙️
+                </button>
+            </div>
+            <div class="text-center flex-1 mx-2">
+                <h1 id="main-title" class="text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500 mb-1 sm:mb-2 transition-all">
+                    TimerPlay
+                </h1>
+                <p id="sub-title" class="text-slate-400 text-xs sm:text-sm">اختبر دقة ردة فعلكم بالثواني، الملي ثانية، والميكرو ثانية!</p>
+            </div>
+            <div class="w-10"></div>
+        </div>
+
+        <!-- Setup Screen -->
+        <div id="setup-screen" class="space-y-4">
+            <div>
+                <label id="lbl-players-count" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">عدد اللاعبين:</label>
+                <input type="number" id="players-count" min="1" max="10" value="2" 
+                    class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 sm:py-3 text-center text-lg sm:text-xl font-bold focus:outline-none focus:border-blue-500 transition">
+            </div>
+
+            <div id="players-names-container" class="space-y-2.5 max-h-36 sm:max-h-44 overflow-y-auto pr-1">
+                <!-- Dynamically generated player inputs -->
+            </div>
+
+            <!-- Time Mode Selection -->
+            <div class="space-y-1.5">
+                <label id="lbl-time-mode" class="block text-xs sm:text-sm font-semibold text-slate-300">طريقة تحديد الوقت المستهدف:</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center justify-center gap-2 cursor-pointer bg-slate-950 px-3 py-2.5 rounded-xl border border-blue-500/50 hover:border-blue-500 transition select-none">
+                        <input type="radio" name="time-mode" value="manual" checked onchange="toggleTimeMode()" class="accent-blue-500">
+                        <span id="opt-manual" class="text-xs sm:text-sm font-semibold">تحديد يدوي</span>
+                    </label>
+                    <label class="flex items-center justify-center gap-2 cursor-pointer bg-slate-950 px-3 py-2.5 rounded-xl border border-slate-700 hover:border-blue-500 transition select-none">
+                        <input type="radio" name="time-mode" value="random" onchange="toggleTimeMode()" class="accent-blue-500">
+                        <span id="opt-random" class="text-xs sm:text-sm font-semibold">عشوائي (0.5 - 10 ث)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Manual Time Container -->
+            <div id="manual-time-container" class="bg-slate-950/50 p-3.5 rounded-2xl border border-slate-800">
+                <label class="block text-xs sm:text-sm font-semibold text-slate-300 mb-2">
+                    <span id="lbl-target-time">الوقت المستهدف (ثوانٍ):</span> <span id="target-val-label" class="text-blue-400 font-bold">5.0</span> <span id="lbl-sec-unit">ثانية</span>
+                </label>
+                <input type="range" id="target-time-slider" min="0.5" max="10" step="0.5" value="5.0"
+                    class="w-full accent-blue-500 cursor-pointer">
+            </div>
+
+            <button id="start-btn-elem" onclick="startGame()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3.5 sm:py-4 rounded-2xl shadow-lg shadow-blue-600/30 transition transform active:scale-95 text-base sm:text-lg">
+                إلعب 🎮
+            </button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="hidden text-center space-y-5">
+            <div class="flex justify-between items-center bg-slate-950/60 px-4 py-3 rounded-2xl border border-slate-800">
+                <div class="text-right">
+                    <span id="lbl-player-turn" class="text-[10px] sm:text-xs text-slate-400 block">دور اللاعب:</span>
+                    <span id="current-player-name" class="text-base sm:text-lg font-bold text-blue-400">--</span>
+                </div>
+                <div class="text-center">
+                    <span id="lbl-round-title" class="text-[10px] sm:text-xs text-slate-400 block">الجولة:</span>
+                    <span id="round-display" class="text-xs sm:text-sm font-bold text-slate-300">1/1</span>
+                </div>
+                <div class="text-left">
+                    <span id="lbl-target-title" class="text-[10px] sm:text-xs text-slate-400 block">الوقت المستهدف:</span>
+                    <span id="target-display" class="text-base sm:text-lg font-black text-amber-400">--</span>
+                </div>
+            </div>
+
+            <div class="py-8 sm:py-10 bg-slate-950 border border-slate-800 rounded-3xl relative overflow-hidden flex flex-col items-center justify-center min-h-[180px] sm:min-h-[220px]">
+                <div id="lbl-elapsed" class="text-[10px] sm:text-xs tracking-wider text-slate-500 uppercase mb-2">الوقت المنقضي</div>
+                <div id="timer-display" class="font-mono text-3xl sm:text-5xl font-black text-slate-200 tracking-wider neon-glow">
+                    00.000000
+                </div>
+                <div id="turn-rating" class="mt-2 text-xs sm:text-sm font-bold text-amber-400 opacity-0 transition-opacity duration-300"></div>
+                <div id="lbl-units" class="text-[10px] sm:text-xs text-slate-400 mt-1 flex gap-2 sm:gap-4">
+                    <span>ثانية : ملي : ميكرو</span>
+                </div>
+            </div>
+
+            <div id="action-area">
+                <button id="action-btn" onclick="handleActionBtn()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 sm:py-5 rounded-2xl shadow-lg shadow-emerald-600/30 transition transform active:scale-95 text-xl sm:text-2xl">
+                    بدء المؤقت ⏱️
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="results-screen" class="hidden space-y-5 text-center">
+            <div class="inline-block p-3.5 sm:p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl mb-1">
+                <span class="text-2xl sm:text-3xl">🏆</span>
+                <h2 id="lbl-results-title" class="text-xl sm:text-2xl font-black text-amber-400 mt-1">نتائج التحدي</h2>
+            </div>
+
+            <div id="group-stats-box" class="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 text-xs sm:text-sm text-slate-300 flex justify-around items-center">
+                <!-- Injected via JS -->
+            </div>
+
+            <div id="leaderboard-list" class="space-y-2.5 max-h-56 sm:max-h-64 overflow-y-auto pr-1">
+                <!-- Scores injected here -->
+            </div>
+
+            <div class="flex gap-2.5 pt-2">
+                <button id="restart-btn-elem" onclick="restartSameGame()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 text-xs sm:text-sm rounded-xl transition shadow-lg shadow-blue-600/20">
+                    إعادة اللعب 🔄
+                </button>
+                <button id="btn-reset-setup" onclick="resetToSetup()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 text-xs sm:text-sm rounded-xl transition">
+                    الإعدادات الرئيسية ⚙️
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Settings Modal Window -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-md shadow-2xl relative space-y-5 animate-in fade-in zoom-in duration-200">
+            
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold transition cursor-pointer">✕</button>
+                <h3 id="lbl-settings-modal-title" class="text-lg font-bold text-slate-100 text-center flex-1">إعدادات اللعبة ⚙️</h3>
+                <div class="w-8"></div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span id="lbl-language" class="text-sm font-semibold text-slate-300">اللغة / Language:</span>
+                    <select id="lang-select" onchange="changeLanguageFromSettings()" class="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-xl px-3 py-2 focus:outline-none">
+                        <option value="ar">العربية 🇸🇦</option>
+                        <option value="en">English 🇬🇧</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                    <span id="lbl-theme" class="text-sm font-semibold text-slate-300">ثيم اللعبة:</span>
+                    <select id="theme-select" onchange="changeTheme()" class="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-xl px-3 py-2 focus:outline-none">
+                        <option value="blue">سايبر أزرق 🔵</option>
+                        <option value="purple">نيون بنفسجي 🟣</option>
+                        <option value="emerald">ماتريكس أخضر 🟢</option>
+                        <option value="amber">ذهبي ملكي 🟡</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                    <span id="lbl-rounds-count" class="text-sm font-semibold text-slate-300">عدد الجولات:</span>
+                    <select id="rounds-select" onchange="saveGameState()" class="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-xl px-3 py-2 focus:outline-none">
+                        <option value="1">1</option>
+                        <option value="3">3</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+
+                <div class="space-y-3 pt-2 border-t border-slate-800">
+                    <label class="flex items-center justify-between cursor-pointer select-none">
+                        <span id="lbl-blind-mode" class="text-sm font-semibold text-slate-300">تحدي أعمى (إخفاء العداد)</span>
+                        <input type="checkbox" id="blind-mode-check" onchange="saveGameState()" class="w-4 h-4 accent-blue-500 rounded cursor-pointer">
+                    </label>
+                    <label class="flex items-center justify-between cursor-pointer select-none">
+                        <span id="lbl-sounds" class="text-sm font-semibold text-slate-300">المؤثرات الصوتية 🔊</span>
+                        <input type="checkbox" id="sound-check" checked onchange="saveGameState()" class="w-4 h-4 accent-blue-500 rounded cursor-pointer">
+                    </label>
+                    <label class="flex items-center justify-between cursor-pointer select-none">
+                        <span id="lbl-shuffle" class="text-sm font-semibold text-slate-300">خلط ترتيب اللاعبين عشوائياً 🔀</span>
+                        <input type="checkbox" id="shuffle-check" onchange="saveGameState()" class="w-4 h-4 accent-blue-500 rounded cursor-pointer">
+                    </label>
+                </div>
+
+                <div id="pwa-install-container" class="hidden pt-2 border-t border-slate-800">
+                    <button id="pwa-install-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-2 cursor-pointer">
+                        <span>📱</span> <span id="lbl-install-btn">تثبيت اللعبة على الشاشة الرئيسية</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <button id="btn-save-close" onclick="closeSettingsModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl transition text-sm">
+                    حفظ وإغلاق ✓
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                if (splash) {
+                    splash.style.opacity = '0';
+                    setTimeout(() => splash.remove(), 700);
+                }
+            }, 1500);
+        });
+
+        const i18n = {
+            ar: {
+                dir: 'rtl',
+                mainTitle: 'TimerPlay',
+                subTitle: 'اختبر دقة ردة فعلكم بالثواني، الملي ثانية، والميكرو ثانية!',
+                playersCount: 'عدد اللاعبين:',
+                playerPlaceholder: 'أدخل اسم اللاعب ',
+                optPlayer: 'اللاعب ',
+                timeModeTitle: 'طريقة تحديد الوقت المستهدف:',
+                manual: 'تحديد يدوي',
+                random: 'عشوائي (0.5 - 10 ث)',
+                targetTimeLabel: 'الوقت المستهدف (ثوانٍ):',
+                secUnit: 'ثانية',
+                playBtn: 'إلعب 🎮',
+                playerTurnTitle: 'دور اللاعب:',
+                roundTitle: 'الجولة:',
+                targetTitle: 'الوقت المستهدف:',
+                elapsedTitle: 'الوقت المنقضي',
+                unitsTitle: 'ثانية : ملي : ميكرو',
+                startTimerBtn: 'انطلاق! (ابدأ المؤقت) ⏱️',
+                stopTimerBtn: 'توقف الآن! 🛑',
+                hiddenTimer: 'مخفي',
+                counting: 'يعد...',
+                nextTurnBtn: 'التالي ➡️',
+                showResultsBtn: 'عرض النتائج النهائية 🏆',
+                resultsTitle: 'نتائج التحدي',
+                groupAvgAcc: '📊 متوسط دقة الفريق:',
+                legendaryHits: '⭐ إصابات أسطورية:',
+                roundWinsLabel: 'جولات فائزة:',
+                avgDiff: 'متوسط الفارق:',
+                accuracy: 'الدقة:',
+                restartBtn: 'إعادة اللعب 🔄',
+                mainSettingsBtn: 'الإعدادات الرئيسية ⚙️',
+                settingsModalTitle: 'إعدادات اللعبة ⚙️',
+                themeLabel: 'ثيم اللعبة:',
+                roundsCountLabel: 'عدد الجولات:',
+                blindModeLabel: 'تحدي أعمى (إخفاء العداد)',
+                soundsLabel: 'المؤثرات الصوتية 🔊',
+                shuffleLabel: 'خلط ترتيب اللاعبين عشوائياً 🔀',
+                installBtnLabel: 'تثبيت اللعبة على الشاشة الرئيسية',
+                saveCloseBtn: 'حفظ وإغلاق ✓',
+                rLegendary: '🌟 إصابة أسطورية!',
+                rPro: '🔥 احترافي جداً!',
+                rExcel: '👍 دقة ممتازة!',
+                rClose: '👌 قريب جداً!',
+                rGood: '😅 محاولة جيدة!'
+            },
+            en: {
+                dir: 'ltr',
+                mainTitle: 'TimerPlay',
+                subTitle: 'Test your reaction accuracy in seconds, ms, and microseconds!',
+                playersCount: 'Number of Players:',
+                playerPlaceholder: 'Enter player name ',
+                optPlayer: 'Player ',
+                timeModeTitle: 'Target Time Selection:',
+                manual: 'Manual',
+                random: 'Random (0.5 - 10s)',
+                targetTimeLabel: 'Target Time (seconds):',
+                secUnit: 's',
+                playBtn: 'Play 🎮',
+                playerTurnTitle: "Player's Turn:",
+                roundTitle: 'Round:',
+                targetTitle: 'Target Time:',
+                elapsedTitle: 'Elapsed Time',
+                unitsTitle: 'sec : ms : μs',
+                startTimerBtn: 'Start Timer ⏱️',
+                stopTimerBtn: 'Stop Now! 🛑',
+                hiddenTimer: 'Hidden',
+                counting: 'Counting...',
+                nextTurnBtn: 'Next ➡️',
+                showResultsBtn: 'Show Final Results 🏆',
+                resultsTitle: 'Challenge Results',
+                groupAvgAcc: '📊 Team Avg Accuracy:',
+                legendaryHits: '⭐ Legendary Hits:',
+                roundWinsLabel: 'Rounds Won:',
+                avgDiff: 'Avg Diff:',
+                accuracy: 'Accuracy:',
+                restartBtn: 'Play Again 🔄',
+                mainSettingsBtn: 'Main Setup ⚙️',
+                settingsModalTitle: 'Game Settings ⚙️',
+                themeLabel: 'Game Theme:',
+                roundsCountLabel: 'Rounds Count:',
+                blindModeLabel: 'Blind Challenge (Hide Timer)',
+                soundsLabel: 'Sound Effects 🔊',
+                shuffleLabel: 'Shuffle Players Order 🔀',
+                installBtnLabel: 'Install Game to Home Screen',
+                saveCloseBtn: 'Save & Close ✓',
+                rLegendary: '🌟 Legendary Hit!',
+                rPro: '🔥 Super Pro!',
+                rExcel: '👍 Excellent Precision!',
+                rClose: '👌 So Close!',
+                rGood: '😅 Good Try!'
+            }
+        };
+
+        let currentLang = 'ar';
+
+        function selectLanguage(lang) {
+            currentLang = lang;
+            document.getElementById('lang-modal').classList.add('hidden');
+            document.getElementById('lang-select').value = lang;
+            applyTranslations();
+            saveGameState();
+        }
+
+        function changeLanguageFromSettings() {
+            currentLang = document.getElementById('lang-select').value;
+            applyTranslations();
+            saveGameState();
+        }
+
+        function applyTranslations() {
+            const t = i18n[currentLang];
+            document.documentElement.dir = t.dir;
+            document.documentElement.lang = currentLang;
+
+            document.getElementById('main-title').textContent = t.mainTitle;
+            document.getElementById('sub-title').textContent = t.subTitle;
+            document.getElementById('lbl-players-count').textContent = t.playersCount;
+            document.getElementById('lbl-time-mode').textContent = t.timeModeTitle;
+            document.getElementById('opt-manual').textContent = t.manual;
+            document.getElementById('opt-random').textContent = t.random;
+            document.getElementById('lbl-target-time').textContent = t.targetTimeLabel;
+            document.getElementById('lbl-sec-unit').textContent = t.secUnit;
+            document.getElementById('start-btn-elem').textContent = t.playBtn;
+            document.getElementById('lbl-player-turn').textContent = t.playerTurnTitle;
+            document.getElementById('lbl-round-title').textContent = t.roundTitle;
+            document.getElementById('lbl-target-title').textContent = t.targetTitle;
+            document.getElementById('lbl-elapsed').textContent = t.elapsedTitle;
+            document.getElementById('lbl-units').textContent = t.unitsTitle;
+            document.getElementById('lbl-results-title').textContent = t.resultsTitle;
+            document.getElementById('restart-btn-elem').textContent = t.restartBtn;
+            document.getElementById('btn-reset-setup').textContent = t.mainSettingsBtn;
+            document.getElementById('lbl-settings-modal-title').textContent = t.settingsModalTitle;
+            document.getElementById('lbl-theme').textContent = t.themeLabel;
+            document.getElementById('lbl-rounds-count').textContent = t.roundsCountLabel;
+            document.getElementById('lbl-blind-mode').textContent = t.blindModeLabel;
+            document.getElementById('lbl-sounds').textContent = t.soundsLabel;
+            document.getElementById('lbl-shuffle').textContent = t.shuffleLabel;
+            document.getElementById('lbl-install-btn').textContent = t.installBtnLabel;
+            document.getElementById('btn-save-close').textContent = t.saveCloseBtn;
+
+            updatePlayerInputs();
+        }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+
+        let deferredPrompt;
+        const pwaInstallContainer = document.getElementById('pwa-install-container');
+        const pwaInstallBtn = document.getElementById('pwa-install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            if (pwaInstallContainer) pwaInstallContainer.classList.remove('hidden');
+        });
+
+        if (pwaInstallBtn) {
+            pwaInstallBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        if (pwaInstallContainer) pwaInstallContainer.classList.add('hidden');
+                    }
+                    deferredPrompt = null;
+                }
+            });
+        }
+
+        let playersCountInput = document.getElementById('players-count');
+        let playersNamesContainer = document.getElementById('players-names-container');
+        let targetSlider = document.getElementById('target-time-slider');
+        let targetValLabel = document.getElementById('target-val-label');
+        let manualTimeContainer = document.getElementById('manual-time-container');
+        let blindModeCheck = document.getElementById('blind-mode-check');
+        let soundCheck = document.getElementById('sound-check');
+        let shuffleCheck = document.getElementById('shuffle-check');
+        let themeSelect = document.getElementById('theme-select');
+        let roundsSelect = document.getElementById('rounds-select');
+        let settingsModal = document.getElementById('settings-modal');
+        let settingsBtnContainer = document.getElementById('settings-btn-container');
+
+        let gameState = {
+            screen: 'setup',
+            players: [],
+            currentPlayerIndex: 0,
+            currentRound: 1,
+            totalRounds: 1,
+            targetTimeSeconds: 5.0,
+            timerState: 'IDLE',
+            lastElapsedMs: 0,
+            timeMode: 'manual',
+            blindMode: false,
+            soundEnabled: true,
+            shufflePlayers: false,
+            theme: 'blue',
+            lang: 'ar'
+        };
+
+        let animationFrameId = null;
+        let audioCtx = null;
+
+        const themesConfig = {
+            blue: {
+                bg: 'bg-slate-950',
+                cardBg: 'bg-slate-900/90',
+                mainTitleGrad: 'from-blue-400 to-indigo-500',
+                accentText: 'text-blue-400'
+            },
+            purple: {
+                bg: 'bg-[#12071f]',
+                cardBg: 'bg-[#1b0d2e]/90',
+                mainTitleGrad: 'from-purple-400 to-pink-500',
+                accentText: 'text-purple-400'
+            },
+            emerald: {
+                bg: 'bg-[#031710]',
+                cardBg: 'bg-[#07261b]/90',
+                mainTitleGrad: 'from-emerald-400 to-teal-500',
+                accentText: 'text-emerald-400'
+            },
+            amber: {
+                bg: 'bg-[#1a1102]',
+                cardBg: 'bg-[#291b05]/90',
+                mainTitleGrad: 'from-amber-400 to-orange-500',
+                accentText: 'text-amber-400'
+            }
+        };
+
+        function applyTheme(themeName) {
+            let conf = themesConfig[themeName] || themesConfig.blue;
+            let body = document.getElementById('body-theme');
+            let card = document.getElementById('main-card');
+            let mainTitle = document.getElementById('main-title');
+
+            body.className = `${conf.bg} text-slate-100 min-h-screen flex flex-col items-center justify-center p-3 sm:p-6 selection:bg-blue-500 selection:text-white transition-colors duration-500`;
+            card.className = `w-full max-w-xl ${conf.cardBg} border border-slate-800 rounded-3xl p-5 sm:p-8 neon-box backdrop-blur-xl my-auto relative overflow-hidden transition-all duration-500`;
+            mainTitle.className = `text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r ${conf.mainTitleGrad} mb-1 sm:mb-2 transition-all`;
+
+            document.querySelectorAll('#current-player-name').forEach(el => {
+                el.className = `text-base sm:text-lg font-bold ${conf.accentText}`;
+            });
+
+            let startBtn = document.getElementById('start-btn-elem');
+            if (startBtn) {
+                startBtn.className = `w-full bg-gradient-to-r ${conf.mainTitleGrad} text-white font-bold py-3.5 sm:py-4 rounded-2xl shadow-lg transition transform active:scale-95 text-base sm:text-lg`;
+            }
+
+            let restartBtn = document.getElementById('restart-btn-elem');
+            if (restartBtn) {
+                restartBtn.className = `flex-1 bg-gradient-to-r ${conf.mainTitleGrad} text-white font-bold py-3 text-xs sm:text-sm rounded-xl transition shadow-lg`;
+            }
+        }
+
+        function changeTheme() {
+            let t = themeSelect.value;
+            gameState.theme = t;
+            applyTheme(t);
+            saveGameState();
+        }
+
+        function updateSettingsButtonVisibility() {
+            if (gameState.screen === 'setup') {
+                settingsBtnContainer.style.visibility = 'visible';
+                settingsBtnContainer.style.opacity = '1';
+            } else {
+                settingsBtnContainer.style.visibility = 'hidden';
+                settingsBtnContainer.style.opacity = '0';
+            }
+        }
+
+        function openSettingsModal() {
+            settingsModal.classList.remove('hidden');
+            settingsModal.classList.add('flex');
+        }
+
+        function closeSettingsModal() {
+            settingsModal.classList.remove('flex');
+            settingsModal.classList.add('hidden');
+        }
+
+        function triggerVibration(pattern) {
+            if (navigator.vibrate) {
+                try { navigator.vibrate(pattern); } catch(e) {}
+            }
+        }
+
+        function playSound(type) {
+            if (!soundCheck.checked) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                let now = audioCtx.currentTime;
+                if (type === 'start') {
+                    triggerVibration(40);
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'stop') {
+                    triggerVibration([30, 30, 50]);
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(300, now + 0.2);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'win') {
+                    triggerVibration([100, 50, 100, 50, 200]);
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                        let o = audioCtx.createOscillator();
+                        let g = audioCtx.createGain();
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.frequency.value = freq;
+                        g.gain.setValueAtTime(0.1, now + idx * 0.1);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.2);
+                        o.start(now + idx * 0.1);
+                        o.stop(now + idx * 0.1 + 0.2);
+                    });
+                }
+            } catch(e) {}
+        }
+
+        function saveGameState() {
+            gameState.blindMode = blindModeCheck.checked;
+            gameState.soundEnabled = soundCheck.checked;
+            gameState.shufflePlayers = shuffleCheck.checked;
+            gameState.theme = themeSelect.value;
+            gameState.totalRounds = parseInt(roundsSelect.value) || 1;
+            gameState.lang = currentLang;
+            try {
+                sessionStorage.setItem('precision_game_state_full', JSON.stringify(gameState));
+            } catch(e) {}
+        }
+
+        function loadGameState() {
+            try {
+                let saved = sessionStorage.getItem('precision_game_state_full');
+                if (saved) {
+                    gameState = JSON.parse(saved);
+                    blindModeCheck.checked = gameState.blindMode;
+                    soundCheck.checked = gameState.soundEnabled !== false;
+                    shuffleCheck.checked = gameState.shufflePlayers || false;
+                    if (gameState.theme) themeSelect.value = gameState.theme;
+                    if (gameState.totalRounds) roundsSelect.value = gameState.totalRounds;
+                    if (gameState.lang) {
+                        currentLang = gameState.lang;
+                        document.getElementById('lang-modal').classList.add('hidden');
+                        document.getElementById('lang-select').value = currentLang;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        function savePlayerNamesToStorage() {
+            let nameInputs = document.querySelectorAll('.player-name-input');
+            let names = [];
+            nameInputs.forEach(input => names.push(input.value));
+            localStorage.setItem('precision_game_players', JSON.stringify(names));
+        }
+
+        function getPlayerNamesFromStorage() {
+            try {
+                let data = localStorage.getItem('precision_game_players');
+                return data ? JSON.parse(data) : [];
+            } catch(e) {
+                return [];
+            }
+        }
+
+        function updatePlayerInputs() {
+            let count = parseInt(playersCountInput.value) || 1;
+            if (count > 10) count = 10;
+            if (count < 1) count = 1;
+            
+            let savedNames = getPlayerNamesFromStorage();
+            let t = i18n[currentLang];
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                let val = savedNames[i] !== undefined ? savedNames[i] : '';
+                html += `
+                    <div>
+                        <input type="text" placeholder="${t.playerPlaceholder} ${i + 1}" value="${val}" 
+                            oninput="savePlayerNamesToStorage()"
+                            class="player-name-input w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold focus:outline-none focus:border-blue-500 transition">
+                    </div>
+                `;
+            }
+            playersNamesContainer.innerHTML = html;
+        }
+
+        playersCountInput.addEventListener('input', updatePlayerInputs);
+        
+        targetSlider.addEventListener('input', (e) => {
+            let val = parseFloat(e.target.value);
+            targetValLabel.textContent = val.toFixed(1);
+            gameState.targetTimeSeconds = val;
+            saveGameState();
+        });
+
+        function toggleTimeMode() {
+            let mode = document.querySelector('input[name="time-mode"]:checked').value;
+            gameState.timeMode = mode;
+            manualTimeContainer.style.display = (mode === 'manual') ? 'block' : 'none';
+            saveGameState();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadGameState();
+            applyTranslations();
+            applyTheme(gameState.theme || 'blue');
+
+            let modeRadios = document.querySelectorAll('input[name="time-mode"]');
+            modeRadios.forEach(r => {
+                if (r.value === gameState.timeMode) r.checked = true;
+            });
+            manualTimeContainer.style.display = (gameState.timeMode === 'manual') ? 'block' : 'none';
+
+            targetSlider.value = gameState.targetTimeSeconds;
+            targetValLabel.textContent = gameState.targetTimeSeconds.toFixed(1);
+
+            updateSettingsButtonVisibility();
+
+            if (gameState.screen === 'game') {
+                document.getElementById('setup-screen').classList.add('hidden');
+                document.getElementById('game-screen').classList.remove('hidden');
+                if (gameState.timerState === 'RUNNING') gameState.timerState = 'IDLE';
+                restoreGameScreen();
+            } else if (gameState.screen === 'results') {
+                document.getElementById('setup-screen').classList.add('hidden');
+                document.getElementById('results-screen').classList.remove('hidden');
+                showResults(true);
+            }
+        });
+
+        function startGame() {
+            let nameInputs = document.querySelectorAll('.player-name-input');
+            let t = i18n[currentLang];
+            gameState.players = [];
+            nameInputs.forEach((input, index) => {
+                let name = input.value.trim() || `${t.optPlayer} ${index + 1}`;
+                gameState.players.push({ name: name, roundsData: [] });
+            });
+
+            if (shuffleCheck.checked) {
+                for (let i = gameState.players.length - 1; i > 0; i--) {
+                    let j = Math.floor(Math.random() * (i + 1));
+                    [gameState.players[i], gameState.players[j]] = [gameState.players[j], gameState.players[i]];
+                }
+            }
+
+            savePlayerNamesToStorage();
+            gameState.currentPlayerIndex = 0;
+            gameState.currentRound = 1;
+            gameState.totalRounds = parseInt(roundsSelect.value) || 1;
+            gameState.screen = 'game';
+            saveGameState();
+            updateSettingsButtonVisibility();
+
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            preparePlayerTurn();
+        }
+
+        function preparePlayerTurn() {
+            gameState.timerState = 'IDLE';
+            let t = i18n[currentLang];
+            let curPlayer = gameState.players[gameState.currentPlayerIndex];
+            document.getElementById('current-player-name').textContent = curPlayer.name;
+            document.getElementById('round-display').textContent = `${gameState.currentRound}/${gameState.totalRounds}`;
+            document.getElementById('turn-rating').style.opacity = '0';
+            
+            if (gameState.timeMode === 'random') {
+                let randomMs = Math.floor(Math.random() * (10000 - 500 + 1)) + 500;
+                gameState.targetTimeSeconds = randomMs / 1000;
+            } else {
+                gameState.targetTimeSeconds = parseFloat(targetSlider.value);
+            }
+
+            document.getElementById('target-display').textContent = gameState.targetTimeSeconds.toFixed(3) + ` ${t.secUnit}`;
+            document.getElementById('timer-display').textContent = gameState.blindMode ? t.hiddenTimer : '00.000000';
+            
+            let btn = document.getElementById('action-btn');
+            btn.onclick = handleActionBtn;
+            btn.textContent = t.startTimerBtn;
+            btn.className = 'w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 sm:py-5 rounded-2xl shadow-lg shadow-emerald-600/30 transition transform active:scale-95 text-xl sm:text-2xl';
+            
+            saveGameState();
+        }
+
+        function restoreGameScreen() {
+            let t = i18n[currentLang];
+            let curPlayer = gameState.players[gameState.currentPlayerIndex];
+            if (!curPlayer) return;
+            document.getElementById('current-player-name').textContent = curPlayer.name;
+            document.getElementById('round-display').textContent = `${gameState.currentRound}/${gameState.totalRounds}`;
+            document.getElementById('target-display').textContent = gameState.targetTimeSeconds.toFixed(3) + ` ${t.secUnit}`;
+            
+            if (gameState.timerState === 'STOPPED') {
+                document.getElementById('timer-display').textContent = formatPreciseTime(gameState.lastElapsedMs);
+                let btn = document.getElementById('action-btn');
+                let isLastTurn = (gameState.currentPlayerIndex === gameState.players.length - 1) && (gameState.currentRound === gameState.totalRounds);
+                btn.textContent = isLastTurn ? t.showResultsBtn : t.nextTurnBtn;
+                btn.className = 'w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 sm:py-5 rounded-2xl shadow-lg shadow-blue-600/30 transition transform active:scale-95 text-xl sm:text-2xl';
+                btn.onclick = nextStepAfterTurn;
+            } else {
+                document.getElementById('timer-display').textContent = gameState.blindMode ? t.hiddenTimer : formatPreciseTime(gameState.lastElapsedMs);
+                let btn = document.getElementById('action-btn');
+                btn.onclick = handleActionBtn;
+                btn.textContent = t.startTimerBtn;
+                btn.className = 'w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 sm:py-5 rounded-2xl shadow-lg shadow-emerald-600/30 transition transform active:scale-95 text-xl sm:text-2xl';
+            }
+        }
+
+        function handleActionBtn() {
+            if (gameState.timerState === 'IDLE') {
+                startTimer();
+            } else if (gameState.timerState === 'RUNNING') {
+                stopTimer();
+            }
+        }
+
+        let startTime = 0;
+        function startTimer() {
+            let t = i18n[currentLang];
+            gameState.timerState = 'RUNNING';
+            startTime = performance.now();
+            playSound('start');
+            saveGameState();
+            
+            let btn = document.getElementById('action-btn');
+            btn.textContent = t.stopTimerBtn;
+            btn.className = 'w-full bg-rose-600 hover:bg-rose-500 text-white font-black py-4 sm:py-5 rounded-2xl shadow-lg shadow-rose-600/30 transition transform active:scale-95 text-xl sm:text-2xl animate-pulse';
+
+            function updateLoop() {
+                if (gameState.timerState !== 'RUNNING') return;
+                let now = performance.now();
+                let elapsedMs = now - startTime;
+                gameState.lastElapsedMs = elapsedMs;
+                
+                if (!gameState.blindMode) {
+                    document.getElementById('timer-display').textContent = formatPreciseTime(elapsedMs);
+                } else {
+                    document.getElementById('timer-display').textContent = t.counting;
+                }
+                animationFrameId = requestAnimationFrame(updateLoop);
+            }
+            animationFrameId = requestAnimationFrame(updateLoop);
+        }
+
+        function stopTimer() {
+            let t = i18n[currentLang];
+            gameState.timerState = 'STOPPED';
+            cancelAnimationFrame(animationFrameId);
+            playSound('stop');
+
+            let finalMs = gameState.lastElapsedMs;
+            let targetMs = gameState.targetTimeSeconds * 1000;
+            let diffMs = Math.abs(finalMs - targetMs);
+
+            let accuracy = Math.max(0, 100 - (diffMs / targetMs) * 100);
+
+            let curPlayer = gameState.players[gameState.currentPlayerIndex];
+            curPlayer.roundsData.push({ score: finalMs, diff: diffMs, accuracy: accuracy });
+
+            document.getElementById('timer-display').textContent = formatPreciseTime(finalMs);
+            
+            let ratingEl = document.getElementById('turn-rating');
+            ratingEl.textContent = `${getPrecisionRating(diffMs)} (${t.accuracy} ${accuracy.toFixed(1)}%)`;
+            ratingEl.style.opacity = '1';
+
+            saveGameState();
+
+            let btn = document.getElementById('action-btn');
+            let isLastTurn = (gameState.currentPlayerIndex === gameState.players.length - 1) && (gameState.currentRound === gameState.totalRounds);
+            
+            btn.textContent = isLastTurn ? t.showResultsBtn : t.nextTurnBtn;
+            btn.className = 'w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 sm:py-5 rounded-2xl shadow-lg shadow-blue-600/30 transition transform active:scale-95 text-xl sm:text-2xl';
+
+            btn.onclick = nextStepAfterTurn;
+        }
+
+        function getPrecisionRating(diffMs) {
+            let t = i18n[currentLang];
+            if (diffMs <= 50) return t.rLegendary;
+            if (diffMs <= 150) return t.rPro;
+            if (diffMs <= 300) return t.rExcel;
+            if (diffMs <= 600) return t.rClose;
+            return t.rGood;
+        }
+
+        function nextStepAfterTurn() {
+            gameState.currentPlayerIndex++;
+            let btn = document.getElementById('action-btn');
+            btn.onclick = handleActionBtn;
+
+            if (gameState.currentPlayerIndex < gameState.players.length) {
+                preparePlayerTurn();
+            } else {
+                if (gameState.currentRound < gameState.totalRounds) {
+                    gameState.currentRound++;
+                    gameState.currentPlayerIndex = 0;
+                    preparePlayerTurn();
+                } else {
+                    playSound('win');
+                    showResults();
+                    launchConfetti();
+                }
+            }
+        }
+
+        function formatPreciseTime(ms) {
+            let totalSeconds = ms / 1000;
+            let s = Math.floor(totalSeconds);
+            let remainderMs = ms % 1000;
+            let millis = Math.floor(remainderMs);
+            let micros = Math.floor((remainderMs - millis) * 1000);
+
+            return `${String(s).padStart(2, '0')}.${String(millis).padStart(3, '0')}.${String(micros).padStart(3, '0')}`;
+        }
+
+        function showResults(isRestoring = false) {
+            let t = i18n[currentLang];
+            if (!isRestoring) {
+                gameState.screen = 'results';
+                saveGameState();
+            }
+            updateSettingsButtonVisibility();
+
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('results-screen').classList.remove('hidden');
+
+            let winsCount = new Array(gameState.players.length).fill(0);
+            for (let r = 0; r < gameState.totalRounds; r++) {
+                let bestDiff = Infinity;
+                let roundWinnerIdx = -1;
+                gameState.players.forEach((p, pIdx) => {
+                    if (p.roundsData[r] && p.roundsData[r].diff < bestDiff) {
+                        bestDiff = p.roundsData[r].diff;
+                        roundWinnerIdx = pIdx;
+                    }
+                });
+                if (roundWinnerIdx !== -1) {
+                    winsCount[roundWinnerIdx]++;
+                }
+            }
+
+            let processedPlayers = gameState.players.map((p, idx) => {
+                let totalDiff = p.roundsData.reduce((s, r) => s + r.diff, 0);
+                let totalAcc = p.roundsData.reduce((s, r) => s + r.accuracy, 0);
+                let count = p.roundsData.length || 1;
+                return {
+                    name: p.name,
+                    wins: winsCount[idx],
+                    avgDiff: totalDiff / count,
+                    avgAcc: totalAcc / count,
+                    roundsData: p.roundsData
+                };
+            });
+
+            processedPlayers.sort((a, b) => {
+                if (b.wins !== a.wins) {
+                    return b.wins - a.wins;
+                }
+                return a.avgDiff - b.avgDiff;
+            });
+
+            let grandTotalAcc = processedPlayers.reduce((s, p) => s + p.avgAcc, 0);
+            let groupAvgAcc = (grandTotalAcc / processedPlayers.length).toFixed(1);
+            let totalLegendary = gameState.players.reduce((s, p) => s + p.roundsData.filter(r => r.diff <= 50).length, 0);
+
+            document.getElementById('group-stats-box').innerHTML = `
+                <div>${t.groupAvgAcc} <span class="text-amber-400 font-bold">${groupAvgAcc}%</span></div>
+                <div>${t.legendaryHits} <span class="text-emerald-400 font-bold">${totalLegendary}</span></div>
+            `;
+
+            let html = '';
+            processedPlayers.forEach((p, idx) => {
+                let badgeColor = 'bg-slate-800 border-slate-700 text-slate-300';
+                let medal = `#${idx + 1}`;
+                if (idx === 0) {
+                    badgeColor = 'bg-amber-500/20 border-amber-500/50 text-amber-300';
+                    medal = '🥇';
+                } else if (idx === 1) {
+                    badgeColor = 'bg-slate-400/20 border-slate-400/50 text-slate-300';
+                    medal = '🥈';
+                } else if (idx === 2) {
+                    badgeColor = 'bg-amber-700/20 border-amber-700/50 text-amber-600';
+                    medal = '🥉';
+                }
+
+                html += `
+                    <div class="flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border ${badgeColor} transition">
+                        <div class="flex items-center gap-2.5 sm:gap-3">
+                            <span class="text-lg sm:text-xl font-bold w-6 sm:w-8">${medal}</span>
+                            <div class="text-start">
+                                <div class="font-bold text-sm sm:text-base text-slate-100">${p.name} <span class="text-xs text-emerald-400 font-bold">(${p.wins} ${t.roundWinsLabel})</span></div>
+                                <div class="text-[10px] sm:text-xs text-slate-400">${t.avgDiff} ${(p.avgDiff / 1000).toFixed(4)} ${t.secUnit}</div>
+                            </div>
+                        </div>
+                        <div class="text-end font-mono text-[10px] sm:text-xs font-semibold text-slate-300 bg-slate-950/60 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-slate-800">
+                            ${t.accuracy} ${p.avgAcc.toFixed(1)}%
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('leaderboard-list').innerHTML = html;
+        }
+
+        function launchConfetti() {
+            let colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+            for (let i = 0; i < 40; i++) {
+                let conf = document.createElement('div');
+                conf.className = 'confetti';
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                conf.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                conf.style.animationDelay = (Math.random() * 0.5) + 's';
+                document.body.appendChild(conf);
+                setTimeout(() => conf.remove(), 4000);
+            }
+        }
+
+        function restartSameGame() {
+            gameState.screen = 'game';
+            gameState.currentRound = 1;
+            gameState.currentPlayerIndex = 0;
+            gameState.players.forEach(p => p.roundsData = []);
+            saveGameState();
+            updateSettingsButtonVisibility();
+            document.getElementById('results-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            preparePlayerTurn();
+        }
+
+        function resetToSetup() {
+            gameState.screen = 'setup';
+            saveGameState();
+            updateSettingsButtonVisibility();
+            document.getElementById('results-screen').classList.add('hidden');
+            document.getElementById('setup-screen').classList.remove('hidden');
+            updatePlayerInputs();
+        }
+    </script>
+</body>
+</html>
